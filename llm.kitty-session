@@ -1,0 +1,15 @@
+layout splits
+launch --var window=editor nvim
+launch --var window=claude --location=vsplit --title "claude" claude
+launch --var window=chatgpt --location=vsplit --title "chatgpt" codex
+focus_matching_window var:window=claude
+launch --location=hsplit --title "gemini" gemini
+focus_matching_window var:window=chatgpt
+launch --location=hsplit --title "opencode" opencode
+focus_matching_window var:window=editor
+launch --var window=term --location=hsplit --title "term" zsh
+focus_matching_window var:window=editor
+resize_window wider 40
+focus_matching_window var:window=term
+resize_window shorter 15
+focus_matching_window var:window=editor
