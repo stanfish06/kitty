@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-cd ~/Git/scloop
-kitty --session ~/.config/kitty/sessions/llm.kitty-session
+pwd > /tmp/kitty-cwd
+kitten @ action --self=yes goto_session ~/.config/kitty/sessions/llm.kitty-session

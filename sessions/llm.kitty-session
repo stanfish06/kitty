@@ -1,13 +1,14 @@
 layout splits
-launch --var window=editor nvim
-launch --var window=claude --location=vsplit --title "claude" claude
-launch --var window=chatgpt --location=vsplit --title "chatgpt" codex
+# note: only use exec for zsh so that we get back to zsh when the program exists
+launch --var window=editor zsh -lic "cd $(cat /tmp/kitty-cwd); nvim ."
+launch --var window=claude --location=vsplit --title "claude" zsh -lic "cd $(cat /tmp/kitty-cwd); claude"
+launch --var window=chatgpt --location=vsplit --title "chatgpt" zsh -lic "cd $(cat /tmp/kitty-cwd); codex"
 focus_matching_window var:window=claude
-launch --location=hsplit --title "gemini" gemini
+launch --location=hsplit --title "gemini" zsh -lic "cd $(cat /tmp/kitty-cwd); gemini"
 focus_matching_window var:window=chatgpt
-launch --location=hsplit --title "opencode" opencode
+launch --location=hsplit --title "opencode" zsh -lic "cd $(cat /tmp/kitty-cwd); opencode"
 focus_matching_window var:window=editor
-launch --var window=term --location=hsplit --title "term" zsh
+launch --var window=term --location=hsplit --title "term" zsh -lic "cd $(cat /tmp/kitty-cwd); exec zsh"
 focus_matching_window var:window=editor
 resize_window wider 40
 focus_matching_window var:window=term
