@@ -79,12 +79,14 @@ session_id_for_title() {
 
 build_menu_lines() {
   local all_tsv=""
+  local idx=0
   for s in "${socks[@]}"; do
+    idx=$((idx + 1))
     local tsv=""
     tsv="$(
-      "$kitty_bin" @ --to "unix:${s}" ls 2>/dev/null | jq -r --arg sock "$s" '
+      "$kitty_bin" @ --to "unix:${s}" ls 2>/dev/null | jq -r --arg sock "$s" --arg idx "$idx" '
         .[].tabs[]
-        | [$sock, (.windows[0].id|tostring), (.title|tostring), (.is_focused|tostring)]
+        | [$sock, $idx, (.windows[0].id|tostring), (.title|tostring), (.is_focused|tostring)]
         | @tsv
       ' 2>/dev/null || true
     )"
@@ -93,22 +95,29 @@ build_menu_lines() {
     fi
   done
 
-  all_tsv="$(printf "%s" "$all_tsv" | sort -t$'\t' -k3,3 -u)"
+  all_tsv="$(printf "%s" "$all_tsv" | sort -t$'\t' -k2,2n -k4,4)"
 
   if [[ -z "${all_tsv:-}" ]]; then
     return 1
   fi
 
   # sock<TAB>wid<TAB>raw_title<TAB>pretty_display
-  printf "%s\n" "$all_tsv" | awk -F'\t' '{
+  printf "%s\n" "$all_tsv" | awk -F'\t' -v smode="$switch_mode" '{
     sock=$1
-    wid=$2
-    title=$3
-    focused=$4
-    if (focused == "true") {
-      printf "%s\t%s\t%s\t\033[31m[current]\033[0m %s\n", sock, wid, title, title
+    sidx=$2
+    wid=$3
+    title=$4
+    focused=$5
+    labels="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if (smode == "session") {
+      pre = "[" substr(labels, sidx, 1) "] "
     } else {
-      printf "%s\t%s\t%s\t          %s\n", sock, wid, title, title
+      pre = ""
+    }
+    if (focused == "true") {
+      printf "%s\t%s\t%s\t%s\033[31m[current]\033[0m %s\n", sock, wid, title, pre, title
+    } else {
+      printf "%s\t%s\t%s\t%s          %s\n", sock, wid, title, pre, title
     }
   }'
 }
