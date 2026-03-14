@@ -43,8 +43,8 @@ if [[ ! -x "$kitty_bin" ]]; then
   exit 1
 fi
 
-sock="$(ls /tmp/kitty-* 2>/dev/null | head -n1 || true)"
-if [[ -z "${sock:-}" ]]; then
+mapfile -t socks < <(ls /tmp/kitty-* 2>/dev/null || true)
+if [[ ${#socks[@]} -eq 0 ]]; then
   echo "No kitty sockets found in /tmp (kitty not running, or remote control not available)."
   exit 1
 fi
@@ -62,27 +62,36 @@ session_id_for_title() {
 }
 
 build_menu_lines() {
-  local tabs_tsv=""
-  tabs_tsv="$(
-    "$kitty_bin" @ --to "unix:${sock}" ls 2>/dev/null | jq -r '
-      .[].tabs[]
-      | [(.title|tostring), (.is_focused|tostring)]
-      | @tsv
-    ' | sort -u
-  )"
+  local all_tsv=""
+  for s in "${socks[@]}"; do
+    local tsv=""
+    tsv="$(
+      "$kitty_bin" @ --to "unix:${s}" ls 2>/dev/null | jq -r --arg sock "$s" '
+        .[].tabs[]
+        | [$sock, (.title|tostring), (.is_focused|tostring)]
+        | @tsv
+      ' 2>/dev/null || true
+    )"
+    if [[ -n "${tsv:-}" ]]; then
+      all_tsv+="${tsv}"$'\n'
+    fi
+  done
 
-  if [[ -z "${tabs_tsv:-}" ]]; then
+  all_tsv="$(printf "%s" "$all_tsv" | sort -t$'\t' -k2,2 -u)"
+
+  if [[ -z "${all_tsv:-}" ]]; then
     return 1
   fi
 
-  # raw_title<TAB>pretty_display
-  printf "%s\n" "$tabs_tsv" | awk -F'\t' '{
-    title=$1
-    focused=$2
+  # sock<TAB>raw_title<TAB>pretty_display
+  printf "%s\n" "$all_tsv" | awk -F'\t' '{
+    sock=$1
+    title=$2
+    focused=$3
     if (focused == "true") {
-      printf "%s\t\033[31m[current]\033[0m %s\n", title, title
+      printf "%s\t%s\t\033[31m[current]\033[0m %s\n", sock, title, title
     } else {
-      printf "%s\t          %s\n", title, title
+      printf "%s\t%s\t          %s\n", sock, title, title
     }
   }'
 }
@@ -118,7 +127,7 @@ while true; do
           --header="Normal: j/k move, d close, enter open, i insert, esc quit" \
           --prompt="Kitty > " \
           --no-multi --disabled \
-          --with-nth=2.. \
+          --with-nth=3.. \
           --expect=enter,d,i,esc \
           --bind 'j:down,k:up' \
           --bind 'enter:accept,d:accept,i:accept' \
@@ -146,7 +155,7 @@ while true; do
           --header="Insert: type to filter, enter open, esc normal" \
           --prompt="Kitty (insert) > " \
           --no-multi \
-          --with-nth=2.. \
+          --with-nth=3.. \
           --expect=enter,esc \
           --bind 'enter:accept' \
           --bind 'esc:abort' \
@@ -166,10 +175,12 @@ while true; do
     sel="$(printf "%s\n" "$fzf_out" | sed -n '2p' || true)"
   fi
 
-  # Selection line is: raw_title<TAB>pretty_display
+  # Selection line is: sock<TAB>raw_title<TAB>pretty_display
+  selected_sock=""
   selected_title=""
   if [[ -n "${sel:-}" ]]; then
-    selected_title="$(printf "%s" "$sel" | awk -F'\t' '{print $1}')"
+    selected_sock="$(printf "%s" "$sel" | awk -F'\t' '{print $1}')"
+    selected_title="$(printf "%s" "$sel" | awk -F'\t' '{print $2}')"
   fi
 
   if [[ "$mode" == "insert" && "$key" == "esc" ]]; then
@@ -197,12 +208,12 @@ while true; do
 
   if [[ "$mode" == "normal" && "$key" == "d" ]]; then
     session_id="$(session_id_for_title "$selected_title")"
-    "$kitty_bin" @ --to "unix:${sock}" action close_session "$session_id" >/dev/null 2>&1 || true
+    "$kitty_bin" @ --to "unix:${selected_sock}" action close_session "$session_id" >/dev/null 2>&1 || true
     continue
   fi
 
   if [[ "$key" == "enter" ]]; then
-    "$kitty_bin" @ --to "unix:${sock}" action goto_session "$selected_title"
+    "$kitty_bin" @ --to "unix:${selected_sock}" focus-window
     exit 0
   fi
 
