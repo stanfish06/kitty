@@ -43,7 +43,10 @@ if [[ ! -x "$kitty_bin" ]]; then
   exit 1
 fi
 
-mapfile -t socks < <(ls /tmp/kitty-* 2>/dev/null || true)
+socks=()
+while IFS= read -r s; do
+  socks+=("$s")
+done < <(ls /tmp/kitty-* 2>/dev/null || true)
 if [[ ${#socks[@]} -eq 0 ]]; then
   echo "No kitty sockets found in /tmp (kitty not running, or remote control not available)."
   exit 1
