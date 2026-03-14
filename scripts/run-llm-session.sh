@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
-pwd > /tmp/kitty-cwd
+pwd > /tmp/cwd-kitty
 kitten @ action goto_session ~/.config/kitty/sessions/llm.kitty-session
