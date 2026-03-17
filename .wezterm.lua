@@ -1,0 +1,1 @@
+/Users/stan/.wezterm.lua
